@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/MyProject.dir/source/main.cpp.o -o MyProject 
