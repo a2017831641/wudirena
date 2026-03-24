@@ -30,7 +30,7 @@ if [ -f "../testcase/0.txt" ]; then
     program_status=$?
     end_time=$(date +%s%N)
     elapsed_time=$((end_time - start_time))
-    elapsed_time_ms=$(echo "scale=3; $elapsed_time / 1000000" | bc)
+    elapsed_time_ms=$(awk -v ns="$elapsed_time" 'BEGIN {printf "%.3f", ns/1000000}')
 
     cat "$output_file"
     echo -e "\033[1m\033[34m\nExecution time: ${elapsed_time_ms} ms\n\033[0m"

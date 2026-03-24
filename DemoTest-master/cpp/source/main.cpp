@@ -1,154 +1,53 @@
 #include "../helper/helper.hpp"
 
-struct PQNode2D {
-    double f;
-    int r, c;
+struct PQ2D {
+    double d;
+    int r;
+    int c;
 
-    bool operator<(const PQNode2D& other) const {
-        return f > other.f; // priority_queue 默认大顶堆，这里反转成小顶堆效果
+    bool operator<(const PQ2D& other) const {
+        return d > other.d;
     }
 };
 
-double octileHeuristic(int r1, int c1, int r2, int c2) {
-    int dr = abs(r1 - r2);
-    int dc = abs(c1 - c2);
-    int mn = min(dr, dc);
-    int mx = max(dr, dc);
-    return mn * sqrt(2.0) + (mx - mn);
-}
-
-vector<pair<int,int>> reconstructPath2D(
-    pair<int,int> goal,
-    const vector<vector<pair<int,int>>>& parent
-) {
-    vector<pair<int,int>> path;
-    auto cur = goal;
-
-    while (cur.first != -1) {
-        path.push_back(cur);
-        cur = parent[cur.first][cur.second];
-    }
-
-    reverse(path.begin(), path.end());
-    return path;
-}
-
-vector<pair<int,int>> astar2D(
-    const GridMap& m,
-    pair<int,int> start,
-    pair<int,int> goal
-) {
-    const vector<pair<int,int>> dirs = {
+vector<vector<double>> build2DDistanceMap(const GridMap& m, pair<int, int> goal) {
+    const vector<pair<int, int>> dirs = {
         {-1, 0}, {1, 0}, {0, -1}, {0, 1},
-        {-1,-1}, {-1, 1}, {1,-1}, {1, 1}
-    };
-
-    vector<vector<double>> g(m.h, vector<double>(m.w, kInf));
-    vector<vector<char>> closed(m.h, vector<char>(m.w, 0));
-    vector<vector<pair<int,int>>> parent(
-        m.h, vector<pair<int,int>>(m.w, {-1, -1})
-    );
-
-    priority_queue<PQNode2D> pq;
-    g[start.first][start.second] = 0.0;
-    pq.push({octileHeuristic(start.first, start.second, goal.first, goal.second),
-             start.first, start.second});
-
-    while (!pq.empty()) {
-        auto cur = pq.top();
-        pq.pop();
-
-        int r = cur.r;
-        int c = cur.c;
-
-        if (closed[r][c]) continue;
-        closed[r][c] = 1;
-
-        if (r == goal.first && c == goal.second) {
-            return reconstructPath2D(goal, parent);
-        }
-
-        for (auto [dr, dc] : dirs) {
-            int nr = r + dr;
-            int nc = c + dc;
-
-            if (!m.inBoundsRC(nr, nc)) continue;
-            if (m.isBlockedRC(nr, nc)) continue;
-
-            // 防止“沿对角穿墙”
-            if (abs(dr) == 1 && abs(dc) == 1) {
-                if (m.isBlockedRC(r, nc) || m.isBlockedRC(nr, c)) {
-                    continue;
-                }
-            }
-
-            double step_cost = (abs(dr) + abs(dc) == 2) ? sqrt(2.0) : 1.0;
-            double ng = g[r][c] + step_cost;
-
-            if (ng + 1e-12 >= g[nr][nc]) continue;
-
-            g[nr][nc] = ng;
-            parent[nr][nc] = {r, c};
-            double nf = ng + octileHeuristic(nr, nc, goal.first, goal.second);
-            pq.push({nf, nr, nc});
-        }
-    }
-
-    return {};
-}
-
-vector<vector<double>> build2DDistanceMap(
-    const GridMap& m,
-    pair<int,int> goal
-) {
-    struct State {
-        double d;
-        int r, c;
-
-        bool operator<(const State& other) const {
-            return d > other.d;
-        }
-    };
-
-    const vector<pair<int,int>> dirs = {
-        {-1, 0}, {1, 0}, {0, -1}, {0, 1},
-        {-1,-1}, {-1, 1}, {1,-1}, {1, 1}
+        {-1, -1}, {-1, 1}, {1, -1}, {1, 1}
     };
 
     vector<vector<double>> dist(m.h, vector<double>(m.w, kInf));
-    priority_queue<State> pq;
+    priority_queue<PQ2D> pq;
 
     if (!m.isBlockedRC(goal.first, goal.second)) {
         dist[goal.first][goal.second] = 0.0;
-        pq.push({0.0, goal.first, goal.second});
+        pq.push(PQ2D{0.0, goal.first, goal.second});
     }
 
     while (!pq.empty()) {
-        auto cur = pq.top();
+        PQ2D cur = pq.top();
         pq.pop();
 
         if (cur.d > dist[cur.r][cur.c] + 1e-12) continue;
 
-        for (auto [dr, dc] : dirs) {
+        for (size_t i = 0; i < dirs.size(); ++i) {
+            int dr = dirs[i].first;
+            int dc = dirs[i].second;
             int nr = cur.r + dr;
             int nc = cur.c + dc;
 
             if (!m.inBoundsRC(nr, nc)) continue;
             if (m.isBlockedRC(nr, nc)) continue;
 
-            // 防止对角穿墙
             if (abs(dr) == 1 && abs(dc) == 1) {
-                if (m.isBlockedRC(cur.r, nc) || m.isBlockedRC(nr, cur.c)) {
-                    continue;
-                }
+                if (m.isBlockedRC(cur.r, nc) || m.isBlockedRC(nr, cur.c)) continue;
             }
 
             double w = (abs(dr) + abs(dc) == 2) ? sqrt(2.0) : 1.0;
             double nd = cur.d + w;
-
             if (nd + 1e-12 < dist[nr][nc]) {
                 dist[nr][nc] = nd;
-                pq.push({nd, nr, nc});
+                pq.push(PQ2D{nd, nr, nc});
             }
         }
     }
@@ -156,23 +55,169 @@ vector<vector<double>> build2DDistanceMap(
     return dist;
 }
 
-void printDistanceMap(
-    const GridMap& m,
-    const vector<vector<double>>& dist
-) {
-    cout << "\n=== 2D DISTANCE MAP (from goal) ===\n";
-    for (int r = 0; r < m.h; ++r) {
-        for (int c = 0; c < m.w; ++c) {
-            if (m.isBlockedRC(r, c)) {
-                cout << setw(8) << "#";
-            } else if (dist[r][c] >= kInf / 2) {
-                cout << setw(8) << "INF";
-            } else {
-                cout << setw(8) << fixed << setprecision(1) << dist[r][c];
-            }
-        }
-        cout << "\n";
+int yawToBin(double yaw, int yaw_bins) {
+    double a = normalizeAngle(yaw);
+    double t = (a + kPi) / (2.0 * kPi);
+    int bin = static_cast<int>(floor(t * yaw_bins));
+    if (bin < 0) bin = 0;
+    if (bin >= yaw_bins) bin = yaw_bins - 1;
+    return bin;
+}
+
+struct OpenItem {
+    double f;
+    int node_id;
+
+    bool operator<(const OpenItem& other) const {
+        return f > other.f;
     }
+};
+
+bool isPoseCollisionFree(const GridMap& m, const Pose& p) {
+    if (p.x < 0.0 || p.y < 0.0 || p.x >= m.w || p.y >= m.h) return false;
+    return !m.isBlockedXY(p.x, p.y);
+}
+
+bool isMotionCollisionFree(const GridMap& m, const Pose& from, const MotionPrimitive& motion, double wheel_base) {
+    const int checks = 6;
+    double sub_step = motion.step / checks;
+    MotionPrimitive sub_motion;
+    sub_motion.steer = motion.steer;
+    sub_motion.dir = motion.dir;
+    sub_motion.step = sub_step;
+
+    Pose cur = from;
+    for (int i = 0; i < checks; ++i) {
+        cur = propagateForward(cur, sub_motion, wheel_base);
+        if (!isPoseCollisionFree(m, cur)) return false;
+    }
+    return true;
+}
+
+vector<Pose> reconstructPosePath(const vector<Node3D>& nodes, int goal_id) {
+    vector<Pose> path;
+    int cur = goal_id;
+    while (cur != -1) {
+        path.push_back(nodes[cur].pose);
+        cur = nodes[cur].parent;
+    }
+    reverse(path.begin(), path.end());
+    return path;
+}
+
+vector<Pose> hybridAStarForward(
+    const GridMap& m,
+    const Pose& start,
+    const Pose& goal,
+    const vector<vector<double>>& h2d
+) {
+    const int yaw_bins = 72;
+    const double wheel_base = 1.0;
+    const double step = 0.8;
+    const double max_steer = deg2rad(35.0);
+    const double goal_pos_tol = 0.75;
+    const double goal_yaw_tol = deg2rad(20.0);
+
+    vector<MotionPrimitive> motions = buildForwardMotions(max_steer, step);
+
+    vector<double> best_g(m.h * m.w * yaw_bins, kInf);
+    auto stateIndex = [&](int r, int c, int yb) {
+        return (r * m.w + c) * yaw_bins + yb;
+    };
+
+    vector<Node3D> nodes;
+    nodes.reserve(200000);
+    priority_queue<OpenItem> open;
+
+    pair<int, int> s_rc = m.xyToCell(start.x, start.y);
+    pair<int, int> g_rc = m.xyToCell(goal.x, goal.y);
+
+    if (!m.inBoundsRC(s_rc.first, s_rc.second) || !m.inBoundsRC(g_rc.first, g_rc.second)) return {};
+
+    int s_yb = yawToBin(start.yaw, yaw_bins);
+    double sh = h2d[s_rc.first][s_rc.second];
+    if (sh >= kInf / 2) return {};
+
+    Node3D s;
+    s.pose = start;
+    s.g = 0.0;
+    s.h = sh;
+    s.parent = -1;
+    s.dir = 1;
+    s.steer = 0.0;
+
+    nodes.push_back(s);
+    best_g[stateIndex(s_rc.first, s_rc.second, s_yb)] = 0.0;
+    open.push(OpenItem{s.g + s.h, 0});
+
+    while (!open.empty()) {
+        OpenItem top = open.top();
+        open.pop();
+
+        Node3D cur = nodes[top.node_id];
+        pair<int, int> cur_rc = m.xyToCell(cur.pose.x, cur.pose.y);
+        if (!m.inBoundsRC(cur_rc.first, cur_rc.second)) continue;
+
+        int cur_bin = yawToBin(cur.pose.yaw, yaw_bins);
+        int cur_idx = stateIndex(cur_rc.first, cur_rc.second, cur_bin);
+        if (cur.g > best_g[cur_idx] + 1e-12) continue;
+
+        double dx = cur.pose.x - goal.x;
+        double dy = cur.pose.y - goal.y;
+        double dyaw = normalizeAngle(cur.pose.yaw - goal.yaw);
+        if (hypot(dx, dy) <= goal_pos_tol && fabs(dyaw) <= goal_yaw_tol) {
+            return reconstructPosePath(nodes, top.node_id);
+        }
+
+        for (size_t i = 0; i < motions.size(); ++i) {
+            const MotionPrimitive& motion = motions[i];
+            Pose next_pose = propagateForward(cur.pose, motion, wheel_base);
+
+            if (!isMotionCollisionFree(m, cur.pose, motion, wheel_base)) continue;
+
+            pair<int, int> nr = m.xyToCell(next_pose.x, next_pose.y);
+            if (!m.inBoundsRC(nr.first, nr.second)) continue;
+            if (m.isBlockedRC(nr.first, nr.second)) continue;
+
+            double h = h2d[nr.first][nr.second];
+            if (h >= kInf / 2) continue;
+
+            double steer_penalty = 0.03 * fabs(motion.steer);
+            double ng = cur.g + motion.step + steer_penalty;
+            int nyb = yawToBin(next_pose.yaw, yaw_bins);
+            int nidx = stateIndex(nr.first, nr.second, nyb);
+
+            if (ng + 1e-12 >= best_g[nidx]) continue;
+
+            best_g[nidx] = ng;
+            Node3D nxt;
+            nxt.pose = next_pose;
+            nxt.g = ng;
+            nxt.h = h;
+            nxt.parent = top.node_id;
+            nxt.dir = 1;
+            nxt.steer = motion.steer;
+
+            nodes.push_back(nxt);
+            int nid = static_cast<int>(nodes.size()) - 1;
+            open.push(OpenItem{ng + h, nid});
+        }
+    }
+
+    return {};
+}
+
+vector<pair<int, int>> posePathToCells(const GridMap& m, const vector<Pose>& path) {
+    vector<pair<int, int>> cells;
+    cells.reserve(path.size());
+
+    for (size_t i = 0; i < path.size(); ++i) {
+        pair<int, int> rc = m.xyToCell(path[i].x, path[i].y);
+        if (!m.inBoundsRC(rc.first, rc.second)) continue;
+        if (cells.empty() || cells.back() != rc) cells.push_back(rc);
+    }
+
+    return cells;
 }
 
 int main() {
@@ -182,22 +227,13 @@ int main() {
     try {
         Problem prob = readProblem(cin);
 
-        // Step 0：先设为 0，确保你最容易调试成功
-        // 后面如果你想模拟“机器人有半径”，再改成 1、2 ...
         int inflation_radius = 0;
         inflateObstacles(prob.map, inflation_radius);
 
-        auto start_rc = prob.map.xyToCell(prob.start.x, prob.start.y);
-        auto goal_rc  = prob.map.xyToCell(prob.goal.x, prob.goal.y);
+        pair<int, int> start_rc = prob.map.xyToCell(prob.start.x, prob.start.y);
+        pair<int, int> goal_rc = prob.map.xyToCell(prob.goal.x, prob.goal.y);
 
         cout << fixed << setprecision(2);
-        cout << "MAP_SIZE " << prob.map.h << " " << prob.map.w << "\n";
-        cout << "START " << prob.start.x << " " << prob.start.y << " "
-             << rad2deg(prob.start.yaw) << "deg"
-             << " -> cell(" << start_rc.first << "," << start_rc.second << ")\n";
-        cout << "GOAL  " << prob.goal.x << " " << prob.goal.y << " "
-             << rad2deg(prob.goal.yaw) << "deg"
-             << " -> cell(" << goal_rc.first << "," << goal_rc.second << ")\n";
 
         if (!prob.map.inBoundsRC(start_rc.first, start_rc.second)) {
             cout << "ERROR: START_OUT_OF_MAP\n";
@@ -207,47 +243,33 @@ int main() {
             cout << "ERROR: GOAL_OUT_OF_MAP\n";
             return 0;
         }
-
         if (prob.map.isBlockedRC(start_rc.first, start_rc.second)) {
             cout << "ERROR: START_IN_OBSTACLE\n";
-            cout << "\n=== ASCII MAP ===\n";
-            printAsciiMap(prob.map, {}, &prob.start, &prob.goal);
+            printAsciiMap(prob.map, vector<pair<int, int> >(), &prob.start, &prob.goal);
             return 0;
         }
         if (prob.map.isBlockedRC(goal_rc.first, goal_rc.second)) {
             cout << "ERROR: GOAL_IN_OBSTACLE\n";
-            cout << "\n=== ASCII MAP ===\n";
-            printAsciiMap(prob.map, {}, &prob.start, &prob.goal);
+            printAsciiMap(prob.map, vector<pair<int, int> >(), &prob.start, &prob.goal);
             return 0;
         }
 
-        auto path2d = astar2D(prob.map, start_rc, goal_rc);
-        auto dist2d = build2DDistanceMap(prob.map, goal_rc);
+        vector<vector<double>> h2d = build2DDistanceMap(prob.map, goal_rc);
+        vector<Pose> path = hybridAStarForward(prob.map, prob.start, prob.goal, h2d);
 
-        if (path2d.empty()) {
+        if (path.empty()) {
             cout << "NO_PATH\n";
-            cout << "\n=== ASCII MAP ===\n";
-            printAsciiMap(prob.map, {}, &prob.start, &prob.goal);
-            cout << "\n";
-            printDistanceMap(prob.map, dist2d);
+            printAsciiMap(prob.map, vector<pair<int, int> >(), &prob.start, &prob.goal);
             return 0;
         }
 
-        cout << "2D_PATH_CELL_COUNT " << path2d.size() << "\n";
-        cout << "=== 2D PATH (cell centers) ===\n";
-        for (auto [r, c] : path2d) {
-        auto [x, y] = prob.map.cellCenter(r, c);
-        cout << fixed << setprecision(2) << x << " " << y << "\n";
+        for (size_t i = 0; i < path.size(); ++i) {
+            cout << path[i].x << " " << path[i].y << "\n";
         }
 
-
-        cout << "\n=== ASCII MAP ===\n";
-        printAsciiMap(prob.map, path2d, &prob.start, &prob.goal);
-
-        cout << "\n";
-        printDistanceMap(prob.map, dist2d);
-    }
-    catch (const exception& e) {
+        vector<pair<int, int>> cell_path = posePathToCells(prob.map, path);
+        printAsciiMap(prob.map, cell_path, &prob.start, &prob.goal);
+    } catch (const exception& e) {
         cout << "EXCEPTION: " << e.what() << "\n";
     }
 

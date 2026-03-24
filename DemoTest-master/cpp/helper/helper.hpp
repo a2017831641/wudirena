@@ -20,6 +20,49 @@ struct Pose {
     double yaw = 0.0; // rad
 };
 
+struct MotionPrimitive {
+    double steer = 0.0; // rad
+    int dir = 1;        // +1 only for forward version
+    double step = 0.8;  // meter-like grid unit
+};
+
+struct Node3D {
+    Pose pose;          // continuous (x, y, yaw)
+    double g = kInf;
+    double h = 0.0;
+    int parent = -1;
+    int dir = 1;
+    double steer = 0.0;
+};
+
+inline vector<MotionPrimitive> buildForwardMotions(double max_steer, double step) {
+    vector<MotionPrimitive> motions;
+    motions.reserve(5);
+
+    for (int i = 0; i < 5; ++i) {
+        double t = -1.0 + 0.5 * i; // -1, -0.5, 0, 0.5, 1
+        MotionPrimitive m;
+        m.steer = t * max_steer;
+        m.dir = 1;
+        m.step = step;
+        motions.push_back(m);
+    }
+
+    return motions;
+}
+
+inline Pose propagateForward(const Pose& cur, const MotionPrimitive& motion, double wheel_base) {
+    Pose nxt = cur;
+    double ds = motion.step;
+    double beta = tan(motion.steer);
+
+    nxt.x = cur.x + ds * cos(cur.yaw);
+    nxt.y = cur.y + ds * sin(cur.yaw);
+    nxt.yaw = normalizeAngle(cur.yaw + ds * beta / wheel_base);
+
+    return nxt;
+}
+
 struct GridMap {
     int h = 0, w = 0;
     vector<string> raw; // 原始地图
@@ -45,8 +88,8 @@ struct GridMap {
     }
 
     bool isBlockedXY(double x, double y) const {
-        auto [r, c] = xyToCell(x, y);
-        return isBlockedRC(r, c);
+        pair<int, int> rc = xyToCell(x, y);
+        return isBlockedRC(rc.first, rc.second);
     }
 };
 
@@ -115,23 +158,25 @@ inline void printAsciiMap(
 ) {
     vector<string> canvas = m.occ;
 
-    for (auto [r, c] : path) {
+    for (size_t i = 0; i < path.size(); ++i) {
+        int r = path[i].first;
+        int c = path[i].second;
         if (m.inBoundsRC(r, c) && canvas[r][c] == '.') {
             canvas[r][c] = '*';
         }
     }
 
     if (start) {
-        auto [sr, sc] = m.xyToCell(start->x, start->y);
-        if (m.inBoundsRC(sr, sc)) canvas[sr][sc] = 'S';
+        pair<int, int> src = m.xyToCell(start->x, start->y);
+        if (m.inBoundsRC(src.first, src.second)) canvas[src.first][src.second] = 'S';
     }
 
     if (goal) {
-        auto [gr, gc] = m.xyToCell(goal->x, goal->y);
-        if (m.inBoundsRC(gr, gc)) canvas[gr][gc] = 'G';
+        pair<int, int> grc = m.xyToCell(goal->x, goal->y);
+        if (m.inBoundsRC(grc.first, grc.second)) canvas[grc.first][grc.second] = 'G';
     }
 
-    for (const auto& row : canvas) {
-        cout << row << "\n";
+    for (size_t i = 0; i < canvas.size(); ++i) {
+        cout << canvas[i] << "\n";
     }
 }
