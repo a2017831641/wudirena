@@ -234,6 +234,13 @@ int main() {
         pair<int, int> goal_rc = prob.map.xyToCell(prob.goal.x, prob.goal.y);
 
         cout << fixed << setprecision(2);
+        cout << "MAP_SIZE " << prob.map.h << " " << prob.map.w << "\n";
+        cout << "START " << prob.start.x << " " << prob.start.y << " "
+             << rad2deg(prob.start.yaw) << "deg -> cell("
+             << start_rc.first << "," << start_rc.second << ")\n";
+        cout << "GOAL  " << prob.goal.x << " " << prob.goal.y << " "
+             << rad2deg(prob.goal.yaw) << "deg -> cell("
+             << goal_rc.first << "," << goal_rc.second << ")\n";
 
         if (!prob.map.inBoundsRC(start_rc.first, start_rc.second)) {
             cout << "ERROR: START_OUT_OF_MAP\n";
@@ -245,11 +252,13 @@ int main() {
         }
         if (prob.map.isBlockedRC(start_rc.first, start_rc.second)) {
             cout << "ERROR: START_IN_OBSTACLE\n";
+            cout << "=== ASCII MAP ===\n";
             printAsciiMap(prob.map, vector<pair<int, int> >(), &prob.start, &prob.goal);
             return 0;
         }
         if (prob.map.isBlockedRC(goal_rc.first, goal_rc.second)) {
             cout << "ERROR: GOAL_IN_OBSTACLE\n";
+            cout << "=== ASCII MAP ===\n";
             printAsciiMap(prob.map, vector<pair<int, int> >(), &prob.start, &prob.goal);
             return 0;
         }
@@ -259,15 +268,19 @@ int main() {
 
         if (path.empty()) {
             cout << "NO_PATH\n";
+            cout << "=== ASCII MAP ===\n";
             printAsciiMap(prob.map, vector<pair<int, int> >(), &prob.start, &prob.goal);
             return 0;
         }
 
+        vector<pair<int, int>> cell_path = posePathToCells(prob.map, path);
+        cout << "2D_PATH_CELL_COUNT " << cell_path.size() << "\n";
+        cout << "=== 2D PATH (x y) ===\n";
         for (size_t i = 0; i < path.size(); ++i) {
             cout << path[i].x << " " << path[i].y << "\n";
         }
 
-        vector<pair<int, int>> cell_path = posePathToCells(prob.map, path);
+        cout << "=== ASCII MAP ===\n";
         printAsciiMap(prob.map, cell_path, &prob.start, &prob.goal);
     } catch (const exception& e) {
         cout << "EXCEPTION: " << e.what() << "\n";

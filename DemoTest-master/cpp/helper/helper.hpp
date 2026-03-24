@@ -1,5 +1,6 @@
 #pragma once
 #include <bits/stdc++.h>
+#include <unistd.h>
 using namespace std;
 
 constexpr double kInf = 1e18;
@@ -176,7 +177,33 @@ inline void printAsciiMap(
         if (m.inBoundsRC(grc.first, grc.second)) canvas[grc.first][grc.second] = 'G';
     }
 
-    for (size_t i = 0; i < canvas.size(); ++i) {
-        cout << canvas[i] << "\n";
+    bool use_color = isatty(fileno(stdout));
+    const char* kReset = "\033[0m";
+    const char* kObs = "\033[1;37m";
+    const char* kPath = "\033[1;33m";
+    const char* kStart = "\033[1;32m";
+    const char* kGoal = "\033[1;31m";
+
+    for (size_t r = 0; r < canvas.size(); ++r) {
+        if (!use_color) {
+            cout << canvas[r] << "\n";
+            continue;
+        }
+
+        for (size_t c = 0; c < canvas[r].size(); ++c) {
+            char ch = canvas[r][c];
+            if (ch == '#') {
+                cout << kObs << ch << kReset;
+            } else if (ch == '*') {
+                cout << kPath << ch << kReset;
+            } else if (ch == 'S') {
+                cout << kStart << ch << kReset;
+            } else if (ch == 'G') {
+                cout << kGoal << ch << kReset;
+            } else {
+                cout << ch;
+            }
+        }
+        cout << "\n";
     }
 }
