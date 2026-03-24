@@ -191,13 +191,6 @@ int main() {
         auto goal_rc  = prob.map.xyToCell(prob.goal.x, prob.goal.y);
 
         cout << fixed << setprecision(2);
-        cout << "MAP_SIZE " << prob.map.h << " " << prob.map.w << "\n";
-        cout << "START " << prob.start.x << " " << prob.start.y << " "
-             << rad2deg(prob.start.yaw) << "deg"
-             << " -> cell(" << start_rc.first << "," << start_rc.second << ")\n";
-        cout << "GOAL  " << prob.goal.x << " " << prob.goal.y << " "
-             << rad2deg(prob.goal.yaw) << "deg"
-             << " -> cell(" << goal_rc.first << "," << goal_rc.second << ")\n";
 
         if (!prob.map.inBoundsRC(start_rc.first, start_rc.second)) {
             cout << "ERROR: START_OUT_OF_MAP\n";
@@ -210,42 +203,28 @@ int main() {
 
         if (prob.map.isBlockedRC(start_rc.first, start_rc.second)) {
             cout << "ERROR: START_IN_OBSTACLE\n";
-            cout << "\n=== ASCII MAP ===\n";
             printAsciiMap(prob.map, {}, &prob.start, &prob.goal);
             return 0;
         }
         if (prob.map.isBlockedRC(goal_rc.first, goal_rc.second)) {
             cout << "ERROR: GOAL_IN_OBSTACLE\n";
-            cout << "\n=== ASCII MAP ===\n";
             printAsciiMap(prob.map, {}, &prob.start, &prob.goal);
             return 0;
         }
 
         auto path2d = astar2D(prob.map, start_rc, goal_rc);
-        auto dist2d = build2DDistanceMap(prob.map, goal_rc);
-
         if (path2d.empty()) {
             cout << "NO_PATH\n";
-            cout << "\n=== ASCII MAP ===\n";
             printAsciiMap(prob.map, {}, &prob.start, &prob.goal);
-            cout << "\n";
-            printDistanceMap(prob.map, dist2d);
             return 0;
         }
 
-        cout << "2D_PATH_CELL_COUNT " << path2d.size() << "\n";
-        cout << "=== 2D PATH (cell centers) ===\n";
         for (auto [r, c] : path2d) {
-        auto [x, y] = prob.map.cellCenter(r, c);
-        cout << fixed << setprecision(2) << x << " " << y << "\n";
+            auto [x, y] = prob.map.cellCenter(r, c);
+            cout << fixed << setprecision(2) << x << " " << y << "\n";
         }
 
-
-        cout << "\n=== ASCII MAP ===\n";
         printAsciiMap(prob.map, path2d, &prob.start, &prob.goal);
-
-        cout << "\n";
-        printDistanceMap(prob.map, dist2d);
     }
     catch (const exception& e) {
         cout << "EXCEPTION: " << e.what() << "\n";
