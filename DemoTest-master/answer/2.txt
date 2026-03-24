@@ -1,1 +1,1 @@
-test
+EXCEPTION: invalid map size

@@ -33,7 +33,7 @@ if [ -d "./testcase" ]; then
 
             elapsed_time=$((case_end - case_start))
             all_case_time=$((all_case_time + elapsed_time))
-            elapsed_time_ms=$(echo "scale=3; $elapsed_time / 1000000" | bc)
+            elapsed_time_ms=$(awk -v ns="$elapsed_time" 'BEGIN {printf "%.3f", ns/1000000}')
             echo -e "\033[34mExecution time for ${testcase_name}: ${elapsed_time_ms} ms\033[0m"
 
             if [ $program_status -ne 0 ]; then
@@ -69,7 +69,7 @@ if [ -d "./testcase" ]; then
         fi
     done
 
-    elapsed_time_ms=$(echo "scale=3; $all_case_time / 1000000" | bc)
+    elapsed_time_ms=$(awk -v ns="$all_case_time" 'BEGIN {printf "%.3f", ns/1000000}')
     echo -e "\033[1m\033[34m\nExecution time for all cases: ${elapsed_time_ms} ms\033[0m"
     echo -e "\033[1m\033[32mPassed: ${passed_count}\033[0m"
     echo -e "\033[1m\033[31mFailed: ${failed_count}\033[0m"
